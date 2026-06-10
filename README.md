@@ -25,10 +25,39 @@ docker compose up --build
 - API docs (Swagger): http://localhost:8001/docs
 - Postgres: localhost:5433 (`stockgame` / `stockgame`)
 
-Sign-in uses Google. Create a **Web application OAuth client ID** in Google Cloud Console
-(APIs & Services → Credentials) with `http://localhost:5173` as an authorized JavaScript
-origin, and set it as `GOOGLE_CLIENT_ID` in `.env`. No client secret is needed — the backend
-verifies Google ID tokens and issues its own JWTs.
+Sign-in uses Google — see the credentials walkthrough below.
+
+## Getting Google OAuth credentials
+
+One-time setup, ~5 minutes, free (no billing required):
+
+1. **Open [Google Cloud Console](https://console.cloud.google.com)** and sign in with any
+   Google account.
+2. **Create a project**: project dropdown (top bar) → *New project* → name it (e.g.
+   `fake-stock-game`) → *Create*, then make sure it's selected.
+3. **Configure the OAuth consent screen**: *APIs & Services → OAuth consent screen* →
+   user type **External**. Fill only the required fields (app name + your email), skip
+   logos and scopes, and save through the steps. The app stays in **Testing** mode — add
+   yourself and any friends who'll play under **Test users** (only listed emails can sign
+   in until you publish the app).
+4. **Create the client ID**: *APIs & Services → Credentials → + Create credentials →
+   OAuth client ID* → application type **Web application**. Under **Authorized JavaScript
+   origins** add exactly:
+   ```
+   http://localhost:5173
+   ```
+   Leave *Authorized redirect URIs* empty (the popup flow doesn't use one). *Create*.
+5. **Copy the Client ID** (ends in `.apps.googleusercontent.com`) into `.env`:
+   ```
+   GOOGLE_CLIENT_ID=123456789012-abc123.apps.googleusercontent.com
+   ```
+   Ignore the client secret — this flow never uses it. The backend only verifies Google's
+   signed ID tokens (against this client ID) and then issues its own JWTs.
+6. `docker compose up -d backend frontend` to pick up the change.
+
+Gotchas: the origin must match exactly (`localhost`, not `127.0.0.1`); a freshly created
+client ID can take a minute or two to start working; when you host the app later, add the
+production HTTPS domain as a second authorized origin on the same client ID.
 
 ## The experience
 
