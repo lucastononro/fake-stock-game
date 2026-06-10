@@ -9,6 +9,10 @@ venv/
 node_modules/
 dist/
 
+# Cloudflare
+.wrangler/
+.dev.vars
+
 # OS / editor
 .DS_Store
 .idea/

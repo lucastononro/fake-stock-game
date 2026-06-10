@@ -1,32 +1,24 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: stockgame
-      POSTGRES_PASSWORD: stockgame
-      POSTGRES_DB: stockgame
-    ports:
-      - "5433:5432"  # 5433 on the host to avoid clashing with a local Postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stockgame"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
-    build: ./backend
+    image: node:20
+    working_dir: /app
     environment:
-      DATABASE_URL: postgresql://stockgame:stockgame@db:5432/stockgame
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-in-production}
+      WRANGLER_SEND_METRICS: "false"
+      CI: "true"
+    # wrangler dev runs the Worker locally with a local D1 (SQLite) database,
+    # persisted in ./backend/.wrangler. .dev.vars carries env into the Worker.
+    command: >
+      sh -c "npm install &&
+             printf 'GOOGLE_CLIENT_ID=%s\nSECRET_KEY=%s\n' \"$$GOOGLE_CLIENT_ID\" \"$$SECRET_KEY\" > .dev.vars &&
+             npx wrangler d1 migrations apply DB --local &&
+             npx wrangler dev --ip 0.0.0.0 --port 8000"
     ports:
       - "8001:8000"  # 8001 on the host to avoid clashing with other local services
     volumes:
       - ./backend:/app
-    depends_on:
-      db:
-        condition: service_healthy
+      - backend_node_modules:/app/node_modules
 
   frontend:
     build: ./frontend
@@ -42,4 +34,4 @@ services:
       - backend
 
 volumes:
-  postgres_data:
+  backend_node_modules:

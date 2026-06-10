@@ -7,12 +7,15 @@ winning.
 
 ## Stack
 
-- **Backend** — FastAPI + SQLAlchemy + APScheduler, Google Sign-In (ID-token verification)
-  with app-issued JWTs, market data via
-  [yfinance](https://github.com/ranaroussi/yfinance) (no API key needed)
-- **Database** — PostgreSQL
+Built for Cloudflare:
+
+- **Backend** — Cloudflare Worker: [Hono](https://hono.dev) routing,
+  [jose](https://github.com/panva/jose) for Google Sign-In verification + app JWTs,
+  market data straight from Yahoo Finance's public endpoints (no API key), and a
+  Cron Trigger for the daily job
+- **Database** — Cloudflare D1 (SQLite), schema in `backend/migrations/`
 - **Frontend** — React (Vite) + React Router
-- **Dev environment** — Docker Compose with hot reload on both sides
+- **Dev environment** — Docker Compose (`wrangler dev` with a local D1 + Vite, hot reload)
 
 ## Quick start
 
@@ -22,8 +25,7 @@ docker compose up --build
 ```
 
 - App: http://localhost:5173
-- API docs (Swagger): http://localhost:8001/docs
-- Postgres: localhost:5433 (`stockgame` / `stockgame`)
+- API: http://localhost:8001 (local Worker with a local D1 database)
 
 Sign-in uses Google — see the credentials walkthrough below.
 
@@ -108,38 +110,69 @@ daily job at 21:00 UTC snapshots prices and portfolio values. Trigger it manuall
 
 ```
 backend/
-  app/
-    main.py          # FastAPI app, CORS, router wiring, lifespan
-    config.py        # Settings (env-driven)
-    auth.py          # JWT issuing/validation + bcrypt (group passwords)
-    database.py      # Engine, session, Base
-    models/          # SQLAlchemy models (one file per entity)
-    schemas.py       # Pydantic request/response models
-    routers/         # HTTP endpoints (auth, groups, memberships, stocks, admin)
-    services/        # Business logic: market data, trading, allowance, daily job
+  wrangler.toml      # Worker config: D1 binding, cron trigger, vars
+  migrations/        # D1 SQL migrations
+  src/
+    index.js         # Hono app wiring + scheduled (cron) handler
+    auth.js          # Google ID-token verification, app JWTs, group passwords
+    market.js        # Yahoo Finance quotes/search/history (cached)
+    valuation.js     # Wallet valuation with snapshot fallback
+    charts.js        # Ledger-replay portfolio value series
+    dailyUpdate.js   # Allowances + price/portfolio snapshots
+    routes/          # auth, groups, memberships, simulations, stocks, admin
 frontend/
   src/
     api/client.js    # Fetch wrapper with auth header + endpoints
     context/         # Auth session (token in localStorage)
-    pages/           # Auth, Dashboard, Group room, Portfolio
-    components/      # Navbar, Modal, InviteCode, StockSearch, TradeForm
-docker-compose.yml   # db + backend + frontend, hot reload
+    pages/           # Auth, Dashboard, Group room, Portfolio, Simulation
+    components/      # Charts, donut, trade form, modals, ...
+docker-compose.yml   # wrangler dev + vite, hot reload
 ```
 
 ## Local development without Docker
 
 ```bash
-# backend (needs a local Postgres matching backend/.env.example)
-cd backend && pip install -r requirements.txt
-uvicorn app.main:app --reload
+# backend (local Worker + local D1)
+cd backend && npm install
+npm run migrate:local && npm run dev   # http://localhost:8787
 
-# frontend
-cd frontend && npm install && npm run dev
+# frontend (point the proxy at wrangler's port)
+cd frontend && npm install
+BACKEND_URL=http://localhost:8787 npm run dev
 ```
+
+## Deploying to Cloudflare
+
+One-time setup (needs a free Cloudflare account and `npx wrangler login`):
+
+```bash
+cd backend
+
+# 1. Create the production D1 database and paste the printed id
+#    into wrangler.toml under [[d1_databases]] -> database_id
+npx wrangler d1 create fake-stock-game
+
+# 2. Apply the schema
+npm run migrate:prod
+
+# 3. Secrets & vars
+npx wrangler secret put SECRET_KEY        # any long random string
+# set GOOGLE_CLIENT_ID under [vars] in wrangler.toml (it's public, fine to commit)
+
+# 4. Ship it
+npm run deploy
+```
+
+The Worker URL it prints (e.g. `https://fake-stock-game-api.<you>.workers.dev`) serves the
+API; the cron trigger runs the daily update at 21:00 UTC automatically.
+
+For the frontend, deploy `frontend/` to Cloudflare Pages (build command `npm run build`,
+output `dist`) with env vars `VITE_API_URL=https://<your-worker-url>` and
+`VITE_GOOGLE_CLIENT_ID=<your client id>`. Then add the Pages domain
+(`https://<project>.pages.dev`) as an authorized JavaScript origin on the Google OAuth
+client, alongside `http://localhost:5173`.
 
 ## Roadmap
 
-- [ ] Portfolio value charts (snapshots are already collected)
 - [ ] Group settings editing, leaving groups
-- [ ] Alembic migrations (currently `create_all` on startup)
-- [ ] Set a proper `SECRET_KEY` env var before hosting
+- [ ] Publish the Google OAuth consent screen (lift the test-users-only limit)

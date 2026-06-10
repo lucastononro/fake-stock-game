@@ -1,0 +1,19 @@
+name = "fake-stock-game-api"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+# Daily update: price + portfolio snapshots, allowance credits (21:00 UTC)
+[triggers]
+crons = ["0 21 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fake-stock-game"
+# For production: create the DB with `wrangler d1 create fake-stock-game`
+# and paste the id it prints here. Local dev ignores this value.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+GOOGLE_CLIENT_ID = ""
+# SECRET_KEY is a secret: locally via .dev.vars, in prod via `wrangler secret put SECRET_KEY`
