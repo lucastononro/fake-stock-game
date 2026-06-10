@@ -19,6 +19,7 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://stockgame:stockgame@db:5432/stockgame
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "8001:8000"  # 8001 on the host to avoid clashing with other local services
     volumes:
@@ -31,6 +32,7 @@ services:
     build: ./frontend
     environment:
       BACKEND_URL: http://backend:8000
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "5173:5173"
     volumes:

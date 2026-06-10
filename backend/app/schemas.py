@@ -9,15 +9,8 @@ from app.models import TransactionType
 
 # ---------- Auth / Users ----------
 
-class RegisterRequest(BaseModel):
-    username: str = Field(min_length=2, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
-    display_name: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=6, max_length=128)
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+class GoogleAuthRequest(BaseModel):
+    credential: str = Field(min_length=20)  # Google ID token (JWT)
 
 
 class UserOut(BaseModel):
@@ -26,6 +19,8 @@ class UserOut(BaseModel):
     id: int
     username: str
     display_name: str
+    email: str | None = None
+    picture: str | None = None
     created_at: datetime
 
 

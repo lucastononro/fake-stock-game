@@ -53,8 +53,7 @@ const post = (path, body) => request(path, { method: "POST", body: JSON.stringif
 
 export const api = {
   // auth
-  register: (payload) => post("/auth/register", payload),
-  login: (payload) => post("/auth/login", payload),
+  googleAuth: (payload) => post("/auth/google", payload),
 
   // groups
   myGroups: () => get("/groups/mine"),

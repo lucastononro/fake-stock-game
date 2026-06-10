@@ -418,6 +418,17 @@ input::placeholder {
   font-size: 0.92rem;
 }
 
+.google-login {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+
+.avatar-img {
+  object-fit: cover;
+  background: none;
+}
+
 /* ---------- dashboard ---------- */
 
 .group-grid {

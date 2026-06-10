@@ -7,8 +7,9 @@ winning.
 
 ## Stack
 
-- **Backend** — FastAPI + SQLAlchemy + APScheduler, JWT auth (bcrypt + PyJWT), market data
-  via [yfinance](https://github.com/ranaroussi/yfinance) (no API key needed)
+- **Backend** — FastAPI + SQLAlchemy + APScheduler, Google Sign-In (ID-token verification)
+  with app-issued JWTs, market data via
+  [yfinance](https://github.com/ranaroussi/yfinance) (no API key needed)
 - **Database** — PostgreSQL
 - **Frontend** — React (Vite) + React Router
 - **Dev environment** — Docker Compose with hot reload on both sides
@@ -16,6 +17,7 @@ winning.
 ## Quick start
 
 ```bash
+cp .env.example .env   # put your Google OAuth client ID in it
 docker compose up --build
 ```
 
@@ -23,9 +25,14 @@ docker compose up --build
 - API docs (Swagger): http://localhost:8001/docs
 - Postgres: localhost:5433 (`stockgame` / `stockgame`)
 
+Sign-in uses Google. Create a **Web application OAuth client ID** in Google Cloud Console
+(APIs & Services → Credentials) with `http://localhost:5173` as an authorized JavaScript
+origin, and set it as `GOOGLE_CLIENT_ID` in `.env`. No client secret is needed — the backend
+verifies Google ID tokens and issues its own JWTs.
+
 ## The experience
 
-1. **Create an account** — username, display name, password.
+1. **Sign in with Google** — one click, no passwords.
 2. **Create a group** — set everyone's starting cash, a monthly allowance, and optionally a
    group password. You get a short invite code like `KX7M2APQ`.
 3. **Invite friends** — they paste the code in "Join with code" on their dashboard (and the
@@ -42,7 +49,7 @@ daily job at 21:00 UTC snapshots prices and portfolio values. Trigger it manuall
 
 | Concept | Meaning |
 |---|---|
-| **User** | An account (username + password, JWT sessions) |
+| **User** | An account (Google Sign-In, app JWT sessions) |
 | **Group** | A game room: `initial_cash`, `monthly_allowance`, invite code, optional password |
 | **Membership** | A user's wallet inside one group — cash + holdings live here |
 | **Holding** | Shares of one ticker in a wallet, with average cost |
@@ -53,7 +60,7 @@ daily job at 21:00 UTC snapshots prices and portfolio values. Trigger it manuall
 
 | Method & path | Description |
 |---|---|
-| `POST /auth/register` / `POST /auth/login` | Create account / sign in → JWT |
+| `POST /auth/google` | Verify a Google ID token → app JWT (creates the user on first sign-in) |
 | `GET /auth/me` | Current user |
 | `POST /groups` | Create a group (creator auto-joins) |
 | `GET /groups/mine` | Dashboard: my groups with my value, profit and rank |
@@ -75,7 +82,7 @@ backend/
   app/
     main.py          # FastAPI app, CORS, router wiring, lifespan
     config.py        # Settings (env-driven)
-    auth.py          # bcrypt password hashing + JWT issuing/validation
+    auth.py          # JWT issuing/validation + bcrypt (group passwords)
     database.py      # Engine, session, Base
     models/          # SQLAlchemy models (one file per entity)
     schemas.py       # Pydantic request/response models
