@@ -44,6 +44,7 @@ async function request(path, options = {}) {
     }
     throw new Error(detail);
   }
+  if (response.status === 204) return null;
   return response.json();
 }
 
@@ -71,6 +72,19 @@ export const api = {
   // stocks
   searchStocks: (q) => get(`/stocks/search?q=${encodeURIComponent(q)}`),
   getQuote: (ticker) => get(`/stocks/${encodeURIComponent(ticker)}/quote`),
+
+  // simulations (Time Machine mode)
+  listSimulations: () => get("/simulations"),
+  createSimulation: (payload) => post("/simulations", payload),
+  getSimulation: (simulationId) => get(`/simulations/${simulationId}`),
+  deleteSimulation: (simulationId) =>
+    request(`/simulations/${simulationId}`, { method: "DELETE" }),
+  simTrade: (simulationId, payload) => post(`/simulations/${simulationId}/trades`, payload),
+  simAdvance: (simulationId, payload) => post(`/simulations/${simulationId}/advance`, payload),
+  simQuote: (simulationId, ticker) =>
+    get(`/simulations/${simulationId}/quote?ticker=${encodeURIComponent(ticker)}`),
+  simTransactions: (simulationId) => get(`/simulations/${simulationId}/transactions`),
+  simChart: (simulationId) => get(`/simulations/${simulationId}/chart`),
 };
 
 export function formatMoney(value) {
@@ -84,4 +98,12 @@ export function formatMoney(value) {
 export function formatSigned(value) {
   const number = Number(value);
   return `${number >= 0 ? "+" : ""}${formatMoney(number)}`;
+}
+
+export function formatDate(isoDate) {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }

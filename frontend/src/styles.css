@@ -708,6 +708,108 @@ input::placeholder {
   font-size: 0.9rem;
 }
 
+/* ---------- time machine ---------- */
+
+.section-header {
+  margin-top: 44px;
+}
+
+.section-header h1 {
+  font-size: 1.3rem;
+}
+
+.badge-time {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+
+.time-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.sim-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-date .muted {
+  font-size: 0.8rem;
+}
+
+.sim-date strong {
+  font-size: 1.45rem;
+  letter-spacing: -0.02em;
+}
+
+.advance-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.time-banner > .muted {
+  width: 100%;
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.value-chart svg {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  margin-top: 6px;
+}
+
+.empty-state-compact {
+  padding: 26px 20px;
+  background: var(--surface);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+/* ---------- small controls ---------- */
+
+.btn-small {
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 /* ---------- stock search ---------- */
 
 .stock-search {

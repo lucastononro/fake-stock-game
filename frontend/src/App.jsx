@@ -5,6 +5,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import GroupPage from "./pages/GroupPage.jsx";
 import PortfolioPage from "./pages/PortfolioPage.jsx";
+import SimulationPage from "./pages/SimulationPage.jsx";
 
 function Protected({ children }) {
   const { user } = useAuth();
@@ -42,6 +43,14 @@ export default function App() {
             element={
               <Protected>
                 <PortfolioPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/simulations/:simulationId"
+            element={
+              <Protected>
+                <SimulationPage />
               </Protected>
             }
           />

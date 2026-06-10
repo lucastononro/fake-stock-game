@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatMoney, formatSigned } from "../api/client.js";
+import HoldingsTable from "../components/HoldingsTable.jsx";
+import QuickSellModal from "../components/QuickSellModal.jsx";
 import TradeForm from "../components/TradeForm.jsx";
 
 const TYPE_LABELS = {
@@ -15,6 +17,7 @@ export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState(null);
+  const [sellTarget, setSellTarget] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -33,6 +36,12 @@ export default function PortfolioPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const getQuote = useCallback((ticker) => api.getQuote(ticker), []);
+  const executeTrade = useCallback(
+    (payload) => api.trade(membershipId, payload),
+    [membershipId]
+  );
 
   if (error && !portfolio) {
     return (
@@ -92,51 +101,17 @@ export default function PortfolioPage() {
               </p>
             </div>
           )}
-          {holdings.length > 0 && (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Ticker</th>
-                  <th className="num">Shares</th>
-                  <th className="num">Avg cost</th>
-                  <th className="num">Price</th>
-                  <th className="num">Value</th>
-                  <th className="num">P&L</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map((holding) => {
-                  const pnl =
-                    holding.market_value !== null
-                      ? Number(holding.market_value) - Number(holding.cost_basis)
-                      : null;
-                  return (
-                    <tr key={holding.ticker}>
-                      <td>
-                        <strong>{holding.ticker}</strong>
-                      </td>
-                      <td className="num">{Number(holding.shares)}</td>
-                      <td className="num">{formatMoney(holding.avg_cost)}</td>
-                      <td className="num">{formatMoney(holding.current_price)}</td>
-                      <td className="num">{formatMoney(holding.market_value)}</td>
-                      <td className={`num ${pnl === null ? "" : pnl >= 0 ? "gain" : "loss"}`}>
-                        {pnl === null ? "—" : formatSigned(pnl)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          <HoldingsTable holdings={holdings} onSell={is_mine ? setSellTarget : undefined} />
         </section>
 
         {is_mine && (
           <section className="card">
             <h2>Trade</h2>
             <TradeForm
-              membershipId={membershipId}
               cashBalance={membership.cash_balance}
               onTraded={load}
+              getQuote={getQuote}
+              executeTrade={executeTrade}
             />
           </section>
         )}
@@ -184,6 +159,15 @@ export default function PortfolioPage() {
           </table>
         )}
       </section>
+
+      {sellTarget && (
+        <QuickSellModal
+          holding={sellTarget}
+          executeTrade={executeTrade}
+          onClose={() => setSellTarget(null)}
+          onDone={load}
+        />
+      )}
     </div>
   );
 }

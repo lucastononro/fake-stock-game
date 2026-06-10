@@ -6,6 +6,7 @@ valuations don't hammer the API.
 
 import logging
 import time
+from datetime import date, timedelta
 from decimal import Decimal
 
 import yfinance as yf
@@ -15,6 +16,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _quote_cache: dict[str, tuple[Decimal, float]] = {}
+_range_cache: dict[tuple[str, date, date], tuple[list, float]] = {}
+RANGE_CACHE_TTL = 3600
 
 
 class UnknownTickerError(Exception):
@@ -74,6 +77,38 @@ def search(query: str, limit: int = 10) -> list[dict]:
         for item in results
         if item.get("symbol")
     ]
+
+
+def get_history_range(ticker: str, start: date, end: date) -> list[tuple[date, Decimal]]:
+    """Daily closes between two dates (inclusive), oldest first. Cached for an
+    hour since historical closes don't change."""
+    ticker = ticker.upper().strip()
+    key = (ticker, start, end)
+    cached = _range_cache.get(key)
+    if cached and time.time() - cached[1] < RANGE_CACHE_TTL:
+        return cached[0]
+
+    try:
+        hist = yf.Ticker(ticker).history(
+            start=start.isoformat(), end=(end + timedelta(days=1)).isoformat()
+        )
+    except Exception:
+        logger.warning("historical range fetch failed for %s", ticker, exc_info=True)
+        return []
+    rows = [
+        (index.date(), Decimal(str(round(float(row["Close"]), 4))))
+        for index, row in hist.iterrows()
+    ]
+    _range_cache[key] = (rows, time.time())
+    return rows
+
+
+def get_price_on(ticker: str, on_date: date) -> Decimal | None:
+    """Closing price on a given date, falling back to the most recent close
+    before it (weekends, holidays). None if the ticker has no data by then."""
+    rows = get_history_range(ticker, on_date - timedelta(days=14), on_date)
+    rows = [row for row in rows if row[0] <= on_date]
+    return rows[-1][1] if rows else None
 
 
 def get_history(ticker: str, period: str = "1mo") -> list[dict]:

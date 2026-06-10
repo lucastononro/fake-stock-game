@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api, formatMoney, formatSigned } from "../api/client.js";
+import { Link, useNavigate } from "react-router-dom";
+import { api, formatDate, formatMoney, formatSigned } from "../api/client.js";
 import Modal from "../components/Modal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [groups, setGroups] = useState(null);
+  const [simulations, setSimulations] = useState(null);
   const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  const [showCreateSim, setShowCreateSim] = useState(false);
 
   const load = useCallback(() => {
     api.myGroups().then(setGroups).catch((e) => setError(e.message));
+    api.listSimulations().then(setSimulations).catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => {
@@ -87,9 +90,136 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      <header className="page-header section-header">
+        <div>
+          <h1>⏳ Time Machine</h1>
+          <p className="muted">
+            Start a portfolio in the past, invest, then fast-forward and see how it plays out.
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowCreateSim(true)}>
+          + New simulation
+        </button>
+      </header>
+
+      {simulations?.length === 0 && (
+        <div className="empty-state empty-state-compact">
+          <p className="muted">
+            No simulations yet. Try "what if I'd bought NVIDIA in 2023?" — create one and find
+            out.
+          </p>
+        </div>
+      )}
+
+      <div className="group-grid">
+        {simulations?.map((summary) => (
+          <Link
+            to={`/simulations/${summary.simulation.id}`}
+            key={summary.simulation.id}
+            className="group-card"
+          >
+            <div className="group-card-top">
+              <h3>{summary.simulation.name}</h3>
+              <span className="badge badge-time">⏳</span>
+            </div>
+            <div className="group-card-value">
+              <span className="muted">
+                {formatDate(summary.simulation.start_date)} →{" "}
+                {formatDate(summary.simulation.current_date)}
+              </span>
+              <strong>{formatMoney(summary.total_value)}</strong>
+              <span className={Number(summary.profit) >= 0 ? "gain" : "loss"}>
+                {formatSigned(summary.profit)}
+              </span>
+            </div>
+            <div className="group-card-footer muted">
+              <span>Started with {formatMoney(summary.simulation.initial_cash)}</span>
+              <span>{formatMoney(summary.simulation.cash_balance)} cash</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+
       {showCreate && <CreateGroupModal onClose={() => setShowCreate(false)} onDone={load} />}
       {showJoin && <JoinGroupModal onClose={() => setShowJoin(false)} onDone={load} />}
+      {showCreateSim && <CreateSimulationModal onClose={() => setShowCreateSim(false)} />}
     </div>
+  );
+}
+
+function CreateSimulationModal({ onClose }) {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ name: "", start_date: "2023-01-01", initial_cash: "10000" });
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const maxDate = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const simulation = await api.createSimulation({
+        name: form.name.trim(),
+        start_date: form.start_date,
+        initial_cash: form.initial_cash,
+      });
+      navigate(`/simulations/${simulation.id}`);
+    } catch (e) {
+      setError(e.message);
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal title="New time-machine simulation" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="form">
+        <label>
+          Name
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="What if I'd bought NVIDIA in 2023?"
+            required
+            minLength={2}
+            autoFocus
+          />
+        </label>
+        <div className="form-row">
+          <label>
+            Start date (in the past)
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+              min="1980-01-01"
+              max={maxDate}
+              required
+            />
+          </label>
+          <label>
+            Starting cash ($)
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={form.initial_cash}
+              onChange={(e) => setForm({ ...form, initial_cash: e.target.value })}
+              required
+            />
+          </label>
+        </div>
+        <p className="hint muted">
+          You'll trade at that day's real historical prices, then jump forward in time to see
+          how your bets play out.
+        </p>
+        {error && <div className="error">{error}</div>}
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+          {submitting ? "Creating…" : "Start simulation"}
+        </button>
+      </form>
+    </Modal>
   );
 }
 

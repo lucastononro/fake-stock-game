@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import TransactionType
 
@@ -154,6 +154,78 @@ class LeaderboardEntry(BaseModel):
     total_value: Decimal
     profit: Decimal
     profit_pct: Decimal
+
+
+# ---------- Simulations (Time Machine mode) ----------
+
+class SimulationCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    start_date: date
+    initial_cash: Decimal = Field(gt=0, le=Decimal("1000000000"))
+
+    @field_validator("start_date")
+    @classmethod
+    def must_be_in_past(cls, value: date) -> date:
+        if value >= date.today():
+            raise ValueError("start_date must be in the past")
+        if value < date(1980, 1, 1):
+            raise ValueError("start_date must be 1980 or later")
+        return value
+
+
+class SimulationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    start_date: date
+    current_date: date
+    initial_cash: Decimal
+    cash_balance: Decimal
+    created_at: datetime
+
+
+class SimulationSummary(BaseModel):
+    simulation: SimulationOut
+    total_value: Decimal
+    profit: Decimal
+
+
+class SimulationDetail(BaseModel):
+    simulation: SimulationOut
+    holdings: list[HoldingOut]
+    holdings_value: Decimal
+    total_value: Decimal
+    profit: Decimal
+    profit_pct: Decimal
+
+
+class SimAdvanceRequest(BaseModel):
+    amount: int = Field(gt=0, le=520)
+    unit: Literal["days", "weeks", "months"]
+
+
+class SimQuoteOut(BaseModel):
+    ticker: str
+    price: Decimal
+    date: date
+
+
+class SimulationTransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    type: TransactionType
+    ticker: str | None
+    shares: Decimal | None
+    price: Decimal | None
+    amount: Decimal
+    sim_date: date
+
+
+class SimChartPoint(BaseModel):
+    date: date
+    total_value: Decimal
 
 
 # ---------- Stocks ----------

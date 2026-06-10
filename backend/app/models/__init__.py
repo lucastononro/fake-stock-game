@@ -4,6 +4,7 @@ from app.models.membership import Membership
 from app.models.holding import Holding
 from app.models.transaction import Transaction, TransactionType
 from app.models.snapshots import PriceSnapshot, PortfolioSnapshot
+from app.models.simulation import Simulation, SimulationHolding, SimulationTransaction
 
 __all__ = [
     "User",
@@ -14,4 +15,7 @@ __all__ = [
     "TransactionType",
     "PriceSnapshot",
     "PortfolioSnapshot",
+    "Simulation",
+    "SimulationHolding",
+    "SimulationTransaction",
 ]

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import admin, auth, groups, memberships, stocks
+from app.routers import admin, auth, groups, memberships, simulations, stocks
 from app.services.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(groups.router)
 app.include_router(memberships.router)
+app.include_router(simulations.router)
 app.include_router(stocks.router)
 app.include_router(admin.router)
 

@@ -9,4 +9,6 @@ COPY . .
 
 EXPOSE 8000
 
+# WATCHFILES_FORCE_POLLING makes auto-reload reliable inside Docker bind mounts
+ENV WATCHFILES_FORCE_POLLING=true
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
