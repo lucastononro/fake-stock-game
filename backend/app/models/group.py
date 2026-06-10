@@ -1,4 +1,5 @@
 import secrets
+import string
 from datetime import datetime
 from decimal import Decimal
 
@@ -9,12 +10,15 @@ from app.database import Base
 
 
 def _generate_invite_code() -> str:
-    return secrets.token_urlsafe(6)
+    """Short, friendly, unambiguous code like 'KX7M2APQ'."""
+    alphabet = "".join(c for c in string.ascii_uppercase + string.digits if c not in "O0I1L")
+    return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
 class Group(Base):
-    """A fake-stock competition group. Members get `initial_cash` when they
-    join and `monthly_allowance` credited every month thereafter."""
+    """A fake-stock competition room. Members get `initial_cash` when they
+    join and `monthly_allowance` credited every month thereafter. Joining is
+    by invite code, optionally protected by a password."""
 
     __tablename__ = "groups"
 
@@ -26,6 +30,7 @@ class Group(Base):
     invite_code: Mapped[str] = mapped_column(
         String(16), unique=True, index=True, default=_generate_invite_code
     )
+    join_password_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

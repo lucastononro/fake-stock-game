@@ -40,7 +40,7 @@ export default function StockSearch({ onSelect }) {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search stocks (e.g. Apple, TSLA)…"
       />
-      {searching && <p className="muted">Searching…</p>}
+      {searching && <p className="muted search-status">Searching…</p>}
       {results.length > 0 && (
         <ul className="search-results">
           {results.map((result) => (

@@ -1,14 +1,14 @@
 # 📈 Fake Stock Game
 
-A fantasy stock-trading game to play with friends. Create a group, set the starting cash and
-a monthly allowance, and everyone trades real stocks with fake money. Prices come from Yahoo
-Finance, and a daily job snapshots prices and portfolio values so groups can track who's winning.
-
-> ⚠️ No authentication yet — players are picked on the honor system. Auth comes later.
+A fantasy stock-trading game to play with friends. Create an account, start a group (or join
+one with an invite code), and everyone trades real stocks with fake money. Prices come from
+Yahoo Finance, and a daily job snapshots prices and portfolio values so groups can track who's
+winning.
 
 ## Stack
 
-- **Backend** — FastAPI + SQLAlchemy + APScheduler, market data via [yfinance](https://github.com/ranaroussi/yfinance) (no API key needed)
+- **Backend** — FastAPI + SQLAlchemy + APScheduler, JWT auth (bcrypt + PyJWT), market data
+  via [yfinance](https://github.com/ranaroussi/yfinance) (no API key needed)
 - **Database** — PostgreSQL
 - **Frontend** — React (Vite) + React Router
 - **Dev environment** — Docker Compose with hot reload on both sides
@@ -19,42 +19,49 @@ Finance, and a daily job snapshots prices and portfolio values so groups can tra
 docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- API docs (Swagger): http://localhost:8000/docs
+- App: http://localhost:5173
+- API docs (Swagger): http://localhost:8001/docs
+- Postgres: localhost:5433 (`stockgame` / `stockgame`)
 
-Then: create a player → create a group (initial cash + monthly allowance) → friends join the
-group → everyone buys/sells stocks → check the leaderboard.
+## The experience
 
-## How the game works
+1. **Create an account** — username, display name, password.
+2. **Create a group** — set everyone's starting cash, a monthly allowance, and optionally a
+   group password. You get a short invite code like `KX7M2APQ`.
+3. **Invite friends** — they paste the code in "Join with code" on their dashboard (and the
+   password, if you set one), see a preview of the group, and join.
+4. **Trade** — search any stock, buy/sell at the live market price, fractional shares allowed.
+5. **Compete** — the group room shows a live leaderboard; your dashboard shows your standing
+   in every group you're in.
+
+Monthly allowances are credited automatically (one month after joining, then monthly), and a
+daily job at 21:00 UTC snapshots prices and portfolio values. Trigger it manually with
+`POST /admin/run-daily-update`.
+
+## How it's modeled
 
 | Concept | Meaning |
 |---|---|
-| **User** | A player (no password for now) |
-| **Group** | A game: defines `initial_cash` and `monthly_allowance` |
+| **User** | An account (username + password, JWT sessions) |
+| **Group** | A game room: `initial_cash`, `monthly_allowance`, invite code, optional password |
 | **Membership** | A user's wallet inside one group — cash + holdings live here |
 | **Holding** | Shares of one ticker in a wallet, with average cost |
-| **Transaction** | Ledger entry: buys, sells, initial deposit, allowance credits |
+| **Transaction** | Ledger entry: buys, sells, starting cash, allowance credits |
 | **Snapshots** | Daily price per ticker + daily total value per wallet |
-
-- Joining a group credits the wallet with the group's initial cash.
-- Every month after joining, the wallet receives the group's allowance (the daily job
-  catches up missed months automatically).
-- Trades execute at the live market price; fractional shares are allowed.
-- A scheduler runs daily at 21:00 UTC (configurable) to snapshot prices and portfolio
-  values and credit due allowances. It can also be triggered manually:
-  `POST /admin/run-daily-update`.
 
 ## API overview
 
 | Method & path | Description |
 |---|---|
-| `POST /users` | Create a player |
-| `GET /users` / `GET /users/{id}/memberships` | List players / a player's wallets |
-| `POST /groups` | Create a group (owner auto-joins) |
-| `POST /groups/{id}/join` | Join a group (creates a wallet with initial cash) |
-| `GET /groups/{id}/leaderboard` | Ranked total values with P&L |
+| `POST /auth/register` / `POST /auth/login` | Create account / sign in → JWT |
+| `GET /auth/me` | Current user |
+| `POST /groups` | Create a group (creator auto-joins) |
+| `GET /groups/mine` | Dashboard: my groups with my value, profit and rank |
+| `GET /groups/lookup/{invite_code}` | Preview a group before joining |
+| `POST /groups/join` | Join by invite code (+ password if required) |
+| `GET /groups/{id}` / `/leaderboard` | Group room data (members only) |
 | `GET /memberships/{id}/portfolio` | Cash, holdings and live valuation |
-| `POST /memberships/{id}/trades` | Buy or sell (`{side, ticker, shares}`) |
+| `POST /memberships/{id}/trades` | Buy or sell (`{side, ticker, shares}`, own wallet only) |
 | `GET /memberships/{id}/transactions` | Wallet ledger |
 | `GET /memberships/{id}/history` | Daily portfolio value snapshots |
 | `GET /stocks/search?q=` | Ticker search |
@@ -68,17 +75,18 @@ backend/
   app/
     main.py          # FastAPI app, CORS, router wiring, lifespan
     config.py        # Settings (env-driven)
+    auth.py          # bcrypt password hashing + JWT issuing/validation
     database.py      # Engine, session, Base
     models/          # SQLAlchemy models (one file per entity)
     schemas.py       # Pydantic request/response models
-    routers/         # HTTP endpoints (users, groups, memberships, stocks, admin)
+    routers/         # HTTP endpoints (auth, groups, memberships, stocks, admin)
     services/        # Business logic: market data, trading, allowance, daily job
 frontend/
   src/
-    api/client.js    # Fetch wrapper + endpoints
-    context/         # Current-player selection (localStorage)
-    pages/           # Players, Groups, Group detail, Portfolio
-    components/      # Navbar, StockSearch, TradeForm
+    api/client.js    # Fetch wrapper with auth header + endpoints
+    context/         # Auth session (token in localStorage)
+    pages/           # Auth, Dashboard, Group room, Portfolio
+    components/      # Navbar, Modal, InviteCode, StockSearch, TradeForm
 docker-compose.yml   # db + backend + frontend, hot reload
 ```
 
@@ -95,7 +103,7 @@ cd frontend && npm install && npm run dev
 
 ## Roadmap
 
-- [ ] Authentication / sessions
 - [ ] Portfolio value charts (snapshots are already collected)
 - [ ] Group settings editing, leaving groups
 - [ ] Alembic migrations (currently `create_all` on startup)
+- [ ] Set a proper `SECRET_KEY` env var before hosting

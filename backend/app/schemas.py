@@ -7,11 +7,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models import TransactionType
 
 
-# ---------- Users ----------
+# ---------- Auth / Users ----------
 
-class UserCreate(BaseModel):
+class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
     display_name: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 class UserOut(BaseModel):
@@ -23,13 +29,18 @@ class UserOut(BaseModel):
     created_at: datetime
 
 
+class AuthResponse(BaseModel):
+    token: str
+    user: UserOut
+
+
 # ---------- Groups ----------
 
 class GroupCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    owner_id: int
     initial_cash: Decimal = Field(gt=0, le=Decimal("1000000000"))
     monthly_allowance: Decimal = Field(ge=0, le=Decimal("1000000000"))
+    password: str | None = Field(default=None, min_length=4, max_length=128)
 
 
 class GroupOut(BaseModel):
@@ -43,11 +54,35 @@ class GroupOut(BaseModel):
     invite_code: str
     created_at: datetime
     member_count: int = 0
+    has_password: bool = False
 
 
-class GroupJoin(BaseModel):
-    user_id: int
-    invite_code: str | None = None
+class GroupJoinRequest(BaseModel):
+    invite_code: str = Field(min_length=4, max_length=16)
+    password: str | None = None
+
+
+class GroupLookup(BaseModel):
+    """Preview shown before joining a group by invite code."""
+
+    name: str
+    member_count: int
+    initial_cash: Decimal
+    monthly_allowance: Decimal
+    requires_password: bool
+    already_member: bool
+
+
+class MyGroupSummary(BaseModel):
+    """One card on the dashboard: a group plus my wallet's standing in it."""
+
+    group: GroupOut
+    membership_id: int
+    cash_balance: Decimal
+    total_value: Decimal
+    profit: Decimal
+    rank: int
+    is_owner: bool
 
 
 # ---------- Memberships / Portfolio ----------
@@ -78,6 +113,7 @@ class PortfolioOut(BaseModel):
     holdings: list[HoldingOut]
     holdings_value: Decimal
     total_value: Decimal
+    is_mine: bool
 
 
 class PortfolioHistoryPoint(BaseModel):

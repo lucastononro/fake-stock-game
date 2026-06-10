@@ -1,26 +1,20 @@
-import { Link, NavLink } from "react-router-dom";
-import { useCurrentUser } from "../context/CurrentUserContext.jsx";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Navbar() {
-  const { currentUser } = useCurrentUser();
+  const { user, logout } = useAuth();
 
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">
-        📈 Fake Stock Game
+        <span className="brand-icon">📈</span> Fake Stock Game
       </Link>
-      <div className="navbar-links">
-        <NavLink to="/users">Players</NavLink>
-        <NavLink to="/groups">Groups</NavLink>
-      </div>
       <div className="navbar-user">
-        {currentUser ? (
-          <span>
-            Playing as <strong>{currentUser.display_name}</strong>
-          </span>
-        ) : (
-          <span className="muted">No player selected</span>
-        )}
+        <span className="avatar">{user.display_name.charAt(0).toUpperCase()}</span>
+        <span className="navbar-username">{user.display_name}</span>
+        <button className="btn btn-ghost" onClick={logout}>
+          Sign out
+        </button>
       </div>
     </nav>
   );
