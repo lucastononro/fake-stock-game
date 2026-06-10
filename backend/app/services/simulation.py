@@ -2,21 +2,18 @@
 fast-forwarding the simulated clock."""
 
 import logging
-from bisect import bisect_right
-from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
 from app.models import Simulation, SimulationHolding, SimulationTransaction, TransactionType
-from app.services import market
+from app.services import charts, market
 
 logger = logging.getLogger(__name__)
 
 TWO_PLACES = Decimal("0.01")
-MAX_CHART_POINTS = 400
 
 
 class SimulationError(Exception):
@@ -132,48 +129,16 @@ def get_holdings_value(simulation: Simulation) -> tuple[Decimal, list[dict]]:
 
 
 def build_value_series(simulation: Simulation) -> list[dict]:
-    """Replays the ledger to produce the portfolio's daily total value from
-    start to the current simulated date."""
-    start, end = simulation.start_date, simulation.current_date
-    transactions = sorted(simulation.transactions, key=lambda t: (t.sim_date, t.id))
-    tickers = {t.ticker for t in transactions if t.ticker}
-
-    closes: dict[str, tuple[list[date], list[Decimal]]] = {}
-    for ticker in tickers:
-        rows = market.get_history_range(ticker, start - timedelta(days=14), end)
-        closes[ticker] = ([r[0] for r in rows], [r[1] for r in rows])
-
-    def close_at(ticker: str, day: date) -> Decimal | None:
-        dates, prices = closes[ticker]
-        index = bisect_right(dates, day) - 1
-        return prices[index] if index >= 0 else None
-
-    total_days = (end - start).days + 1
-    step = max(1, total_days // MAX_CHART_POINTS)
-    sample_days = [start + timedelta(days=offset) for offset in range(0, total_days, step)]
-    if sample_days[-1] != end:
-        sample_days.append(end)
-
-    series = []
-    cash = Decimal("0")
-    shares: dict[str, Decimal] = defaultdict(Decimal)
-    txn_index = 0
-    for day in sample_days:
-        while txn_index < len(transactions) and transactions[txn_index].sim_date <= day:
-            txn = transactions[txn_index]
-            cash += txn.amount
-            if txn.type == TransactionType.BUY:
-                shares[txn.ticker] += txn.shares
-            elif txn.type == TransactionType.SELL:
-                shares[txn.ticker] -= txn.shares
-            txn_index += 1
-        stocks_value = Decimal("0")
-        for ticker, count in shares.items():
-            if count > 0:
-                price = close_at(ticker, day)
-                if price is not None:
-                    stocks_value += count * price
-        series.append(
-            {"date": day, "total_value": (cash + stocks_value).quantize(TWO_PLACES)}
-        )
-    return series
+    """Daily total/cash/stocks/per-ticker values from start to the current
+    simulated date, replayed from the ledger."""
+    records = [
+        {
+            "date": t.sim_date,
+            "type": t.type,
+            "ticker": t.ticker,
+            "shares": t.shares,
+            "amount": t.amount,
+        }
+        for t in sorted(simulation.transactions, key=lambda t: (t.sim_date, t.id))
+    ]
+    return charts.build_series(records, simulation.start_date, simulation.current_date)

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatMoney, formatSigned } from "../api/client.js";
+import AllocationDonut from "../components/AllocationDonut.jsx";
 import HoldingsTable from "../components/HoldingsTable.jsx";
+import PortfolioChart from "../components/PortfolioChart.jsx";
 import QuickSellModal from "../components/QuickSellModal.jsx";
 import TradeForm from "../components/TradeForm.jsx";
 
@@ -16,17 +18,20 @@ export default function PortfolioPage() {
   const { membershipId } = useParams();
   const [portfolio, setPortfolio] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [chart, setChart] = useState(null);
   const [error, setError] = useState(null);
   const [sellTarget, setSellTarget] = useState(null);
 
   const load = useCallback(async () => {
     try {
-      const [portfolioData, transactionData] = await Promise.all([
+      const [portfolioData, transactionData, chartData] = await Promise.all([
         api.getPortfolio(membershipId),
         api.listTransactions(membershipId),
+        api.getPortfolioChart(membershipId),
       ]);
       setPortfolio(portfolioData);
       setTransactions(transactionData);
+      setChart(chartData);
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -88,6 +93,20 @@ export default function PortfolioPage() {
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      <div className="grid-portfolio">
+        <section className="card">
+          <h2>Performance</h2>
+          <PortfolioChart
+            points={chart}
+            emptyMessage="The performance chart appears after your first day in the group — check back tomorrow."
+          />
+        </section>
+        <section className="card">
+          <h2>Allocation</h2>
+          <AllocationDonut cash={membership.cash_balance} holdings={holdings} />
+        </section>
+      </div>
 
       <div className={is_mine ? "grid-portfolio" : ""}>
         <section className="card">

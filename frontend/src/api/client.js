@@ -65,6 +65,7 @@ export const api = {
 
   // portfolio / trading
   getPortfolio: (membershipId) => get(`/memberships/${membershipId}/portfolio`),
+  getPortfolioChart: (membershipId) => get(`/memberships/${membershipId}/chart`),
   listTransactions: (membershipId) => get(`/memberships/${membershipId}/transactions`),
   trade: (membershipId, payload) => post(`/memberships/${membershipId}/trades`, payload),
 

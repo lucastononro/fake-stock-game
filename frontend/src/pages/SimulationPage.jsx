@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, formatDate, formatMoney, formatSigned } from "../api/client.js";
+import AllocationDonut from "../components/AllocationDonut.jsx";
 import HoldingsTable from "../components/HoldingsTable.jsx";
+import PortfolioChart from "../components/PortfolioChart.jsx";
 import QuickSellModal from "../components/QuickSellModal.jsx";
 import TradeForm from "../components/TradeForm.jsx";
-import ValueChart from "../components/ValueChart.jsx";
 
 const ADVANCE_OPTIONS = [
   { label: "+1 day", amount: 1, unit: "days" },
@@ -159,10 +160,19 @@ export default function SimulationPage() {
         </div>
       </div>
 
-      <section className="card">
-        <h2>Portfolio value over time</h2>
-        <ValueChart points={chart} />
-      </section>
+      <div className="grid-portfolio">
+        <section className="card">
+          <h2>Portfolio value over time</h2>
+          <PortfolioChart
+            points={chart}
+            emptyMessage="Advance time to see your portfolio's journey."
+          />
+        </section>
+        <section className="card">
+          <h2>Allocation</h2>
+          <AllocationDonut cash={simulation.cash_balance} holdings={holdings} />
+        </section>
+      </div>
 
       <div className="grid-portfolio">
         <section className="card">

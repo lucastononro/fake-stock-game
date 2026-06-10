@@ -218,9 +218,15 @@ class SimulationTransactionOut(BaseModel):
     sim_date: date
 
 
-class SimChartPoint(BaseModel):
+class ChartPoint(BaseModel):
+    """One day in a portfolio's history, rich enough for client-side
+    filtering (total / cash / stocks / per-ticker)."""
+
     date: date
     total_value: Decimal
+    cash: Decimal
+    stocks_value: Decimal
+    by_ticker: dict[str, Decimal]
 
 
 # ---------- Stocks ----------

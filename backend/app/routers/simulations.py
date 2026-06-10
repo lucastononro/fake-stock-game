@@ -6,8 +6,8 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Simulation, SimulationTransaction, TransactionType, User
 from app.schemas import (
+    ChartPoint,
     SimAdvanceRequest,
-    SimChartPoint,
     SimQuoteOut,
     SimulationCreate,
     SimulationDetail,
@@ -170,7 +170,7 @@ def list_transactions(
     return sorted(simulation.transactions, key=lambda t: (t.sim_date, t.id), reverse=True)
 
 
-@router.get("/{simulation_id}/chart", response_model=list[SimChartPoint])
+@router.get("/{simulation_id}/chart", response_model=list[ChartPoint])
 def chart(
     simulation_id: int,
     db: Session = Depends(get_db),

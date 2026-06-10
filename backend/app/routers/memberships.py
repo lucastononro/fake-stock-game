@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -7,12 +9,13 @@ from app.database import get_db
 from app.models import Membership, PortfolioSnapshot, Transaction, User
 from app.routers.groups import group_out
 from app.schemas import (
+    ChartPoint,
     PortfolioHistoryPoint,
     PortfolioOut,
     TradeRequest,
     TransactionOut,
 )
-from app.services import valuation
+from app.services import charts, valuation
 from app.services.market import UnknownTickerError
 from app.services.trading import TradeError, execute_trade
 
@@ -88,6 +91,43 @@ def list_transactions(
         .where(Transaction.membership_id == membership_id)
         .order_by(Transaction.created_at.desc())
     ).all()
+
+
+@router.get("/{membership_id}/chart", response_model=list[ChartPoint])
+def portfolio_chart(
+    membership_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Daily value series since joining, replayed from the ledger. Visible to
+    any member of the same group (read-only, like the portfolio itself)."""
+    membership = _get_membership_for_viewer(db, membership_id, current_user)
+    records = [
+        {
+            "date": t.created_at.date(),
+            "type": t.type,
+            "ticker": t.ticker,
+            "shares": t.shares,
+            "amount": t.amount,
+        }
+        for t in sorted(membership.transactions, key=lambda t: (t.created_at, t.id))
+    ]
+    series = charts.build_series(records, membership.joined_at.date(), date.today())
+
+    # Align the final point with live valuation so the chart's end matches
+    # the stat tiles exactly.
+    holdings_value, breakdown = valuation.get_holdings_value(db, membership)
+    series[-1].update(
+        cash=membership.cash_balance,
+        stocks_value=holdings_value,
+        total_value=membership.cash_balance + holdings_value,
+        by_ticker={
+            h["ticker"]: h["market_value"]
+            for h in breakdown
+            if h["market_value"] is not None
+        },
+    )
+    return series
 
 
 @router.get("/{membership_id}/history", response_model=list[PortfolioHistoryPoint])
